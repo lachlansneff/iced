@@ -21,7 +21,6 @@ use iced_native::image;
 #[cfg(feature = "svg")]
 use iced_native::svg;
 
-#[derive(Debug)]
 pub struct Pipeline {
     #[cfg(feature = "image")]
     raster_cache: RefCell<raster::Cache>,
@@ -51,7 +50,8 @@ impl Pipeline {
             mipmap_filter: wgpu::FilterMode::Linear,
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
-            compare: wgpu::CompareFunction::Always,
+            compare: Some(wgpu::CompareFunction::Always),
+            ..Default::default()
         });
 
         let constant_layout =
@@ -62,11 +62,13 @@ impl Pipeline {
                         binding: 0,
                         visibility: wgpu::ShaderStage::VERTEX,
                         ty: wgpu::BindingType::UniformBuffer { dynamic: false },
+                        ..Default::default()
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStage::FRAGMENT,
                         ty: wgpu::BindingType::Sampler { comparison: false },
+                        ..Default::default()
                     },
                 ],
             });
@@ -87,10 +89,7 @@ impl Pipeline {
                 bindings: &[
                     wgpu::Binding {
                         binding: 0,
-                        resource: wgpu::BindingResource::Buffer {
-                            buffer: &uniforms_buffer,
-                            range: 0..std::mem::size_of::<Uniforms>() as u64,
-                        },
+                        resource: wgpu::BindingResource::Buffer(uniforms_buffer.slice(..std::mem::size_of::<Uniforms>() as u64)),
                     },
                     wgpu::Binding {
                         binding: 1,
@@ -110,6 +109,7 @@ impl Pipeline {
                         component_type: wgpu::TextureComponentType::Float,
                         multisampled: false,
                     },
+                    ..Default::default()
                 }],
             });
 
@@ -228,6 +228,7 @@ impl Pipeline {
             label: None,
             size: mem::size_of::<Instance>() as u64 * Instance::MAX as u64,
             usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let texture_atlas = Atlas::new(device);
@@ -425,9 +426,9 @@ impl Pipeline {
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_bind_group(0, &self.constants, &[]);
             render_pass.set_bind_group(1, &self.texture, &[]);
-            render_pass.set_index_buffer(&self.indices, 0, 0);
-            render_pass.set_vertex_buffer(0, &self.vertices, 0, 0);
-            render_pass.set_vertex_buffer(1, &self.instances, 0, 0);
+            render_pass.set_index_buffer(self.indices.slice(..));
+            render_pass.set_vertex_buffer(0, self.vertices.slice(..));
+            render_pass.set_vertex_buffer(1, self.instances.slice(..));
 
             render_pass.set_scissor_rect(
                 bounds.x,

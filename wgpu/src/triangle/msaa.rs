@@ -1,6 +1,5 @@
 use crate::settings;
 
-#[derive(Debug)]
 pub struct Blit {
     format: wgpu::TextureFormat,
     pipeline: wgpu::RenderPipeline,
@@ -25,7 +24,8 @@ impl Blit {
             mipmap_filter: wgpu::FilterMode::Linear,
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
-            compare: wgpu::CompareFunction::Always,
+            compare: Some(wgpu::CompareFunction::Always),
+            ..Default::default()
         });
 
         let constant_layout =
@@ -35,6 +35,7 @@ impl Blit {
                     binding: 0,
                     visibility: wgpu::ShaderStage::FRAGMENT,
                     ty: wgpu::BindingType::Sampler { comparison: false },
+                    ..Default::default()
                 }],
             });
 
@@ -59,6 +60,7 @@ impl Blit {
                         component_type: wgpu::TextureComponentType::Float,
                         multisampled: false,
                     },
+                    ..Default::default()
                 }],
             });
 
@@ -203,7 +205,6 @@ impl Blit {
     }
 }
 
-#[derive(Debug)]
 struct Targets {
     attachment: wgpu::TextureView,
     resolve: wgpu::TextureView,
@@ -230,7 +231,6 @@ impl Targets {
         let attachment = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: extent,
-            array_layer_count: 1,
             mip_level_count: 1,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
@@ -241,7 +241,6 @@ impl Targets {
         let resolve = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: extent,
-            array_layer_count: 1,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,

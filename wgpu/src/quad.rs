@@ -5,7 +5,6 @@ use iced_native::Rectangle;
 use std::mem;
 use zerocopy::AsBytes;
 
-#[derive(Debug)]
 pub struct Pipeline {
     pipeline: wgpu::RenderPipeline,
     constants: wgpu::BindGroup,
@@ -24,6 +23,7 @@ impl Pipeline {
                     binding: 0,
                     visibility: wgpu::ShaderStage::VERTEX,
                     ty: wgpu::BindingType::UniformBuffer { dynamic: false },
+                    ..Default::default()
                 }],
             });
 
@@ -37,10 +37,7 @@ impl Pipeline {
             layout: &constant_layout,
             bindings: &[wgpu::Binding {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer {
-                    buffer: &constants_buffer,
-                    range: 0..std::mem::size_of::<Uniforms>() as u64,
-                },
+                resource: wgpu::BindingResource::Buffer(constants_buffer.slice(..std::mem::size_of::<Uniforms>() as u64)),
             }],
         });
 
@@ -164,6 +161,7 @@ impl Pipeline {
             label: None,
             size: mem::size_of::<layer::Quad>() as u64 * MAX_INSTANCES as u64,
             usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+            mapped_at_creation: false,
         });
 
         Pipeline {
@@ -243,9 +241,9 @@ impl Pipeline {
 
                 render_pass.set_pipeline(&self.pipeline);
                 render_pass.set_bind_group(0, &self.constants, &[]);
-                render_pass.set_index_buffer(&self.indices, 0, 0);
-                render_pass.set_vertex_buffer(0, &self.vertices, 0, 0);
-                render_pass.set_vertex_buffer(1, &self.instances, 0, 0);
+                render_pass.set_index_buffer(self.indices.slice(..));
+                render_pass.set_vertex_buffer(0, self.vertices.slice(..));
+                render_pass.set_vertex_buffer(1, self.instances.slice(..));
                 render_pass.set_scissor_rect(
                     bounds.x,
                     bounds.y,

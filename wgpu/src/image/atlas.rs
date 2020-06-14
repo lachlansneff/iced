@@ -12,7 +12,6 @@ use allocator::Allocator;
 
 pub const SIZE: u32 = 2048;
 
-#[derive(Debug)]
 pub struct Atlas {
     texture: wgpu::Texture,
     texture_view: wgpu::TextureView,
@@ -24,13 +23,12 @@ impl Atlas {
         let extent = wgpu::Extent3d {
             width: SIZE,
             height: SIZE,
-            depth: 1,
+            depth: 2,
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: extent,
-            array_layer_count: 2,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -109,7 +107,7 @@ impl Atlas {
             }
         }
 
-        log::info!("Current atlas: {:?}", self);
+        // log::info!("Current atlas: {:?}", self);
 
         Some(entry)
     }
@@ -270,15 +268,16 @@ impl Atlas {
         encoder.copy_buffer_to_texture(
             wgpu::BufferCopyView {
                 buffer,
-                offset: offset as u64,
-                bytes_per_row: 4 * image_width,
-                rows_per_image: image_height,
+                layout: wgpu::TextureDataLayout {
+                    offset: offset as u64,
+                    bytes_per_row: 4 * image_width,
+                    rows_per_image: image_height,
+                },
             },
             wgpu::TextureCopyView {
                 texture: &self.texture,
-                array_layer: layer as u32,
                 mip_level: 0,
-                origin: wgpu::Origin3d { x, y, z: 0 },
+                origin: wgpu::Origin3d { x, y, z: layer as u32 },
             },
             extent,
         );
@@ -299,9 +298,8 @@ impl Atlas {
             size: wgpu::Extent3d {
                 width: SIZE,
                 height: SIZE,
-                depth: 1,
+                depth: self.layers.len() as u32,
             },
-            array_layer_count: self.layers.len() as u32,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -323,15 +321,13 @@ impl Atlas {
             encoder.copy_texture_to_texture(
                 wgpu::TextureCopyView {
                     texture: &self.texture,
-                    array_layer: i as u32,
                     mip_level: 0,
-                    origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
+                    origin: wgpu::Origin3d { x: 0, y: 0, z: i as u32 },
                 },
                 wgpu::TextureCopyView {
                     texture: &new_texture,
-                    array_layer: i as u32,
                     mip_level: 0,
-                    origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
+                    origin: wgpu::Origin3d { x: 0, y: 0, z: i as u32 },
                 },
                 wgpu::Extent3d {
                     width: SIZE,

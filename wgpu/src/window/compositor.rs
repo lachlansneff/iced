@@ -3,13 +3,20 @@ use crate::{Backend, Renderer, Settings};
 use iced_graphics::Viewport;
 use iced_native::{futures, mouse};
 use raw_window_handle::HasRawWindowHandle;
+use std::iter;
 
 /// A window graphics backend for iced powered by `wgpu`.
-#[derive(Debug)]
 pub struct Compositor {
     settings: Settings,
+    instance: wgpu::Instance,
     device: wgpu::Device,
     queue: wgpu::Queue,
+}
+
+impl std::fmt::Debug for Compositor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Compositor {{}}")
+    }
 }
 
 impl Compositor {
@@ -20,7 +27,9 @@ impl Compositor {
     /// [`Compositor`]: struct.Compositor.html
     /// [`Settings`]: struct.Settings.html
     pub async fn request(settings: Settings) -> Option<Self> {
-        let adapter = wgpu::Adapter::request(
+        let instance = wgpu::Instance::new();
+
+        let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
                 power_preference: if settings.antialiasing.is_none() {
                     wgpu::PowerPreference::Default
@@ -29,21 +38,24 @@ impl Compositor {
                 },
                 compatible_surface: None,
             },
+            wgpu::UnsafeExtensions::disallow(),
             wgpu::BackendBit::PRIMARY,
         )
         .await?;
 
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                extensions: wgpu::Extensions {
-                    anisotropic_filtering: false,
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    extensions: wgpu::Extensions::empty(),
+                    limits: wgpu::Limits { max_bind_groups: 2, ..Default::default() },
+                    shader_validation: true,
                 },
-                limits: wgpu::Limits { max_bind_groups: 2 },
-            })
-            .await;
+                None,
+            ).await.ok()?;
 
         Some(Compositor {
             settings,
+            instance,
             device,
             queue,
         })
@@ -77,7 +89,8 @@ impl iced_graphics::window::Compositor for Compositor {
         &mut self,
         window: &W,
     ) -> wgpu::Surface {
-        wgpu::Surface::create(window)
+        #[allow(unsafe_code)]
+        unsafe { self.instance.create_surface(window) }
     }
 
     fn create_swap_chain(
@@ -106,7 +119,7 @@ impl iced_graphics::window::Compositor for Compositor {
         output: &<Self::Renderer as iced_native::Renderer>::Output,
         overlay: &[T],
     ) -> mouse::Interaction {
-        let frame = swap_chain.get_next_texture().expect("Next frame");
+        let frame = swap_chain.get_next_frame().expect("Next frame");
 
         let mut encoder = self.device.create_command_encoder(
             &wgpu::CommandEncoderDescriptor { label: None },
@@ -114,7 +127,7 @@ impl iced_graphics::window::Compositor for Compositor {
 
         let _ = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                attachment: &frame.view,
+                attachment: &frame.output.view,
                 resolve_target: None,
                 load_op: wgpu::LoadOp::Clear,
                 store_op: wgpu::StoreOp::Store,
@@ -131,13 +144,13 @@ impl iced_graphics::window::Compositor for Compositor {
         let mouse_interaction = renderer.backend_mut().draw(
             &mut self.device,
             &mut encoder,
-            &frame.view,
+            &frame.output.view,
             viewport,
             output,
             overlay,
         );
 
-        self.queue.submit(&[encoder.finish()]);
+        self.queue.submit(iter::once(encoder.finish()));
 
         mouse_interaction
     }

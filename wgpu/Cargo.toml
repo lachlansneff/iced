@@ -13,8 +13,11 @@ canvas = ["iced_graphics/canvas"]
 default_system_font = ["iced_graphics/font-source"]
 
 [dependencies]
-wgpu = "0.5"
-wgpu_glyph = "0.9"
+# wgpu = "0.5"
+wgpu = { git = "https://github.com/gfx-rs/wgpu-rs.git", rev = "554327a3d5bf596c9ca9514db5522287e69b9c18" }
+# wgpu_glyph = "0.9"
+wgpu_glyph = { git = "https://github.com/lachlansneff/wgpu_glyph.git", rev = "e150006fb1248bce565eb8e29f8c4747ed91ebb9" }
+
 glyph_brush = "0.7"
 zerocopy = "0.3"
 bytemuck = "1.2"

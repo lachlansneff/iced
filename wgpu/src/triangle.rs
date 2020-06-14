@@ -12,7 +12,6 @@ const UNIFORM_BUFFER_SIZE: usize = 100;
 const VERTEX_BUFFER_SIZE: usize = 10_000;
 const INDEX_BUFFER_SIZE: usize = 10_000;
 
-#[derive(Debug)]
 pub(crate) struct Pipeline {
     pipeline: wgpu::RenderPipeline,
     blit: Option<msaa::Blit>,
@@ -22,7 +21,6 @@ pub(crate) struct Pipeline {
     index_buffer: Buffer<u32>,
 }
 
-#[derive(Debug)]
 struct Buffer<T> {
     raw: wgpu::Buffer,
     size: usize,
@@ -40,6 +38,7 @@ impl<T> Buffer<T> {
             label: None,
             size: (std::mem::size_of::<T>() * size) as u64,
             usage,
+            mapped_at_creation: false,
         });
 
         Buffer {
@@ -56,6 +55,7 @@ impl<T> Buffer<T> {
                 label: None,
                 size: (std::mem::size_of::<T>() * size) as u64,
                 usage: self.usage,
+                mapped_at_creation: false,
             });
 
             self.size = size;
@@ -76,6 +76,7 @@ impl Pipeline {
                     binding: 0,
                     visibility: wgpu::ShaderStage::VERTEX,
                     ty: wgpu::BindingType::UniformBuffer { dynamic: true },
+                    ..Default::default()
                 }],
             });
 
@@ -91,10 +92,7 @@ impl Pipeline {
                 layout: &constant_layout,
                 bindings: &[wgpu::Binding {
                     binding: 0,
-                    resource: wgpu::BindingResource::Buffer {
-                        buffer: &constants_buffer.raw,
-                        range: 0..std::mem::size_of::<Uniforms>() as u64,
-                    },
+                    resource: wgpu::BindingResource::Buffer(constants_buffer.raw.slice(..std::mem::size_of::<Uniforms>() as u64)),
                 }],
             });
 
@@ -342,16 +340,12 @@ impl Pipeline {
                 );
 
                 render_pass.set_index_buffer(
-                    &self.index_buffer.raw,
-                    index_offset * std::mem::size_of::<u32>() as u64,
-                    0,
+                    self.index_buffer.raw.slice(index_offset * std::mem::size_of::<u32>() as u64..),
                 );
 
                 render_pass.set_vertex_buffer(
                     0,
-                    &self.vertex_buffer.raw,
-                    vertex_offset * std::mem::size_of::<Vertex2D>() as u64,
-                    0,
+                    self.vertex_buffer.raw.slice(vertex_offset * std::mem::size_of::<Vertex2D>() as u64..),
                 );
 
                 render_pass.draw_indexed(0..indices as u32, 0, 0..1);

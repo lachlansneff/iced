@@ -37,7 +37,10 @@ impl Pipeline {
             layout: &constant_layout,
             bindings: &[wgpu::Binding {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer(constants_buffer.slice(..std::mem::size_of::<Uniforms>() as u64)),
+                resource: wgpu::BindingResource::Buffer(
+                    constants_buffer
+                        .slice(..std::mem::size_of::<Uniforms>() as u64),
+                ),
             }],
         });
 

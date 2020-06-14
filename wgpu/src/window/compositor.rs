@@ -29,29 +29,35 @@ impl Compositor {
     pub async fn request(settings: Settings) -> Option<Self> {
         let instance = wgpu::Instance::new();
 
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
-                power_preference: if settings.antialiasing.is_none() {
-                    wgpu::PowerPreference::Default
-                } else {
-                    wgpu::PowerPreference::HighPerformance
+        let adapter = instance
+            .request_adapter(
+                &wgpu::RequestAdapterOptions {
+                    power_preference: if settings.antialiasing.is_none() {
+                        wgpu::PowerPreference::Default
+                    } else {
+                        wgpu::PowerPreference::HighPerformance
+                    },
+                    compatible_surface: None,
                 },
-                compatible_surface: None,
-            },
-            wgpu::UnsafeExtensions::disallow(),
-            wgpu::BackendBit::PRIMARY,
-        )
-        .await?;
+                wgpu::UnsafeExtensions::disallow(),
+                wgpu::BackendBit::PRIMARY,
+            )
+            .await?;
 
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     extensions: wgpu::Extensions::empty(),
-                    limits: wgpu::Limits { max_bind_groups: 2, ..Default::default() },
+                    limits: wgpu::Limits {
+                        max_bind_groups: 2,
+                        ..Default::default()
+                    },
                     shader_validation: true,
                 },
                 None,
-            ).await.ok()?;
+            )
+            .await
+            .ok()?;
 
         Some(Compositor {
             settings,
@@ -90,7 +96,9 @@ impl iced_graphics::window::Compositor for Compositor {
         window: &W,
     ) -> wgpu::Surface {
         #[allow(unsafe_code)]
-        unsafe { self.instance.create_surface(window) }
+        unsafe {
+            self.instance.create_surface(window)
+        }
     }
 
     fn create_swap_chain(

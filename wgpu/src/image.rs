@@ -89,7 +89,11 @@ impl Pipeline {
                 bindings: &[
                     wgpu::Binding {
                         binding: 0,
-                        resource: wgpu::BindingResource::Buffer(uniforms_buffer.slice(..std::mem::size_of::<Uniforms>() as u64)),
+                        resource: wgpu::BindingResource::Buffer(
+                            uniforms_buffer.slice(
+                                ..std::mem::size_of::<Uniforms>() as u64,
+                            ),
+                        ),
                     },
                     wgpu::Binding {
                         binding: 1,
